@@ -1,19 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JCHI</title>
-<style>
-  html, body, iframe {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-    border: none;
-  }
-</style>
+  <style>
+    /* บังคับลบขอบทั้งหมด ขจัดหน้าจอเลื่อนซ้อน */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden; 
+    }
+    /* ใช้เทคนิคเลื่อนขอบบนของ iframe ขึ้นไปลบแถบสีฟ้า (ปรับค่าลบตามความสูงแถวแบนเนอร์) */
+    iframe {
+      position: absolute;
+      top: -45px; /* ดันแบนเนอร์เตือนฝั่ง Google ด้านบนให้หลุดจอออกไป */
+      left: 0;
+      width: 100%;
+      height: calc(100% + 45px); /* ชดเชยความสูงที่โดนดันขึ้นไปให้เต็มจอดังเดิม */
+      border: none;
+    }
+  </style>
 </head>
 <body>
-  <iframe src="https://script.google.com/macros/s/AKfycbzWMYyWVeR1nG4EWhgc1iRsCEeSI--wAOwEFf2SzZHd0lQcW-C5XL1FOCNPgA4n-DVkNA/exec" allow="camera; microphone; geolocation;" width="100%" height="100%" frameborder="0"></iframe>
+
+  <!-- เพิ่มสิทธิ์ sandbox และ allow-forms เพื่อให้ปุ่มและโค้ด JavaScript ทำงานได้อย่างราบรื่น -->
+  <iframe 
+    src="https://script.google.com/macros/s/AKfycbzWMYyWVeR1nG4EWhgc1iRsCEeSI--wAOwEFf2SzZHd0lQcW-C5XL1FOCNPgA4n-DVkNA/exec" 
+    allow="camera; microphone; geolocation;" 
+    sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts">
+  </iframe>
+
 </body>
 </html>
