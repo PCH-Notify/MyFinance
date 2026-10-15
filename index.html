@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f4f8ff">
   <title>MyFinance</title>
   <style>
-    :root{--ink:#172b4d;--muted:#71809a;--line:#e4ebf5;--green:#10b981;--red:#ef5350;--purple:#8b5cf6;--amber:#f59e0b;--blue:#2563eb}
+    :root{--ink:#172b4d;--muted:#71809a;--line:#e4ebf5;--green:#10b981;--red:#ef5350;--purple:#8b5cf6;--amber:#f59e0b;--blue:#2563eb;--bg:#f6faff}
     *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(150deg,#f6faff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,sans-serif;color:var(--ink);padding:env(safe-area-inset-top) 14px calc(84px + env(safe-area-inset-bottom));overscroll-behavior-y:contain}
     button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}button:disabled{opacity:0.6;cursor:not-allowed}
@@ -41,7 +41,7 @@
     .green{color:#079669}.red{color:#e64b4b}.purple{color:#8052d8}.orange{color:#db8a08}
     .section-title{font-weight:800;font-size:17px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
     .primary{background:var(--blue);color:#fff;border-radius:13px;padding:12px 16px;font-weight:700}
-    .secondary{background:#edf4ff;color:#2456a6;border-radius:12px;padding:10px 13px;font-weight:700}
+    .secondary{background:#edf4ff;color:#2456a6;border-radius:12px;padding:9px 13px;font-weight:700;font-size:13px}
     .danger{background:#fff0f0;color:#d94343;border-radius:10px;padding:8px 10px}
     .tx{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #edf1f7}
     .tx:last-child{border:0}
@@ -54,7 +54,7 @@
     .bottom{position:fixed;bottom:0;left:0;right:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#ffffffed;backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:space-around;z-index:10}
     .bottom button{background:transparent;color:#7586a2;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:52px}
     .bottom b{font-size:20px}
-    .bottom .active{color:#079e79}
+    .bottom .active{color:#2563eb}
     .fab{background:#10b981!important;color:white!important;border-radius:50%;width:54px;height:54px;margin-top:-27px;box-shadow:0 4px 15px #10b98155;font-size:25px!important}
     .modal{position:fixed;inset:0;background:#0b1e3b77;z-index:30;display:none;align-items:flex-end;justify-content:center;padding:10px}
     .modal.show{display:flex}
@@ -70,6 +70,20 @@
     .empty{text-align:center;padding:28px 10px;color:var(--muted)}
     .chartbar{height:9px;border-radius:99px;background:#eef2f8;overflow:hidden;margin-top:7px}
     .chartbar span{display:block;height:100%;border-radius:99px}
+    
+    /* Category tag list */
+    .cat-item{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:14px;background:#fff;border:1px solid var(--line);margin-bottom:8px}
+    .cat-badge{display:inline-block;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:600}
+    .filter-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:10px}
+    .chip{border-radius:99px;padding:6px 12px;font-size:12px;font-weight:700;background:#fff;border:1px solid var(--line);white-space:nowrap;color:var(--muted)}
+    .chip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+    
+    /* Report Preview Card */
+    .report-sheet{background:#fff;border-radius:16px;border:1px solid var(--line);padding:20px;margin-top:12px}
+    .report-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:14px}
+    .report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+    .report-table th{background:#f8fafc;color:var(--muted)}
+
     @media(min-width:650px){body{padding-left:24px;padding-right:24px}.circle-area{min-height:430px}.center{width:210px;height:210px}.center strong{font-size:27px}.b-income{left:17%;width:140px;height:140px}.b-expense{right:17%;width:140px;height:140px}.b-saving{left:19%;width:130px;height:130px}.b-optional{right:19%;width:130px;height:130px}.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.modal{align-items:center}}
     @media(max-width:380px){.circle-area{min-height:350px}.center{width:158px;height:158px}.center strong{font-size:19px}.b-income,.b-expense{width:105px;height:105px;top:10px}.b-saving,.b-optional{width:98px;height:98px;bottom:6px}.bubble strong{font-size:12px}.bubble small{font-size:10px}.tx-amount{font-size:12px}}
   </style>
@@ -82,6 +96,7 @@
 </div>
 
 <div class="wrap">
+  <!-- AUTH SECTION -->
   <div id="auth" class="panel auth">
     <div class="brand">MY FINANCE</div>
     <div class="hello">จัดการเงินของคุณอย่างสบายใจ</div>
@@ -102,65 +117,187 @@
     </div>
   </div>
 
+  <!-- MAIN APP SPA -->
   <main id="app" class="hidden">
-    <header class="top">
-      <div>
-        <div class="brand">MY FINANCE</div>
-        <div class="hello" id="hello">สวัสดี 👋</div>
-        <div class="muted">ภาพรวมการเงินของคุณ</div>
+
+    <!-- 1. หน้าหลัก (HOME) -->
+    <section id="tab-home" class="tab-view">
+      <header class="top">
+        <div>
+          <div class="brand">MY FINANCE</div>
+          <div class="hello" id="hello">สวัสดี 👋</div>
+          <div class="muted">ภาพรวมการเงินของคุณ</div>
+        </div>
+        <input id="homeMonth" class="month" type="month" onchange="syncMonth(this.value)">
+      </header>
+
+      <div class="panel">
+        <div class="circle-area">
+          <div class="orbit"></div>
+          <div class="bubble b-income"><small>↓ รายรับ</small><strong id="circleIncome">฿0</strong><small id="incomePct">—</small></div>
+          <div class="bubble b-expense"><small>↑ รายจ่าย</small><strong id="circleExpense">฿0</strong><small id="expensePct">—</small></div>
+          <div class="bubble b-saving"><small>♧ เงินออม</small><strong id="circleSaving">฿0</strong><small id="savingPct">—</small></div>
+          <div class="bubble b-optional"><small>★ ไม่จำเป็น</small><strong id="circleOptional">฿0</strong><small id="optionalPct">—</small></div>
+          <div class="bubble center"><small>▣ ยอดคงเหลือสุทธิ</small><strong id="circleNet">฿0</strong><small>รายรับ − รายจ่าย − เงินออม</small></div>
+        </div>
+        <div class="muted" style="text-align:center">สรุปยอดของเดือนที่เลือก · เลื่อนลงเพื่อรีเฟรชข้อมูล</div>
       </div>
-      <input id="month" class="month" type="month" onchange="loadData()">
-    </header>
 
-    <section class="panel">
-      <div class="circle-area">
-        <div class="orbit"></div>
-        <div class="bubble b-income"><small>↓ รายรับ</small><strong id="circleIncome">฿0</strong><small id="incomePct">—</small></div>
-        <div class="bubble b-expense"><small>↑ รายจ่าย</small><strong id="circleExpense">฿0</strong><small id="expensePct">—</small></div>
-        <div class="bubble b-saving"><small>♧ เงินออม</small><strong id="circleSaving">฿0</strong><small id="savingPct">—</small></div>
-        <div class="bubble b-optional"><small>★ ไม่จำเป็น</small><strong id="circleOptional">฿0</strong><small id="optionalPct">—</small></div>
-        <div class="bubble center"><small>▣ ยอดคงเหลือสุทธิ</small><strong id="circleNet">฿0</strong><small>รายรับ − รายจ่าย − เงินออม</small></div>
+      <div class="stats">
+        <div class="stat"><div class="muted">รายรับ</div><div class="num green" id="statIncome">฿0</div></div>
+        <div class="stat"><div class="muted">รายจ่าย</div><div class="num red" id="statExpense">฿0</div></div>
+        <div class="stat"><div class="muted">เงินออม</div><div class="num purple" id="statSaving">฿0</div></div>
+        <div class="stat"><div class="muted">รายจ่ายจำเป็น</div><div class="num orange" id="statNecessary">฿0</div></div>
       </div>
-      <div class="muted" style="text-align:center">ยอดสรุปของเดือนที่เลือก · เลื่อนลงเพื่อรีเฟรชข้อมูล</div>
+
+      <div class="panel" style="margin-top:14px">
+        <div class="section-title">สัดส่วนค่าใช้จ่าย</div>
+        <div id="breakdown"></div>
+      </div>
+
+      <div class="panel">
+        <div class="section-title">
+          <span>รายการล่าสุด</span>
+          <button class="secondary" onclick="switchTab('transactions')">เพิ่มเติม →</button>
+        </div>
+        <div id="homeRecentTx"></div>
+      </div>
     </section>
 
-    <section class="stats">
-      <div class="stat"><div class="muted">รายรับ</div><div class="num green" id="statIncome">฿0</div></div>
-      <div class="stat"><div class="muted">รายจ่าย</div><div class="num red" id="statExpense">฿0</div></div>
-      <div class="stat"><div class="muted">เงินออม</div><div class="num purple" id="statSaving">฿0</div></div>
-      <div class="stat"><div class="muted">รายจ่ายจำเป็น</div><div class="num orange" id="statNecessary">฿0</div></div>
+    <!-- 2. หน้ารายการ (TRANSACTIONS MANAGEMENT) -->
+    <section id="tab-transactions" class="tab-view hidden">
+      <header class="top">
+        <div>
+          <div class="brand">TRANSACTIONS</div>
+          <div class="hello">จัดการรายการ</div>
+          <div class="muted">เลือกเดือนเพื่อดูหรือแก้ไขย้อนหลัง</div>
+        </div>
+        <input id="txMonth" class="month" type="month" onchange="syncMonth(this.value)">
+      </header>
+
+      <div class="panel">
+        <div class="filter-chips">
+          <button class="chip active" onclick="setTxFilter('all', this)">ทั้งหมด</button>
+          <button class="chip" onclick="setTxFilter('income', this)">รายรับ</button>
+          <button class="chip" onclick="setTxFilter('expense_necessary', this)">จำเป็น</button>
+          <button class="chip" onclick="setTxFilter('expense_optional', this)">ไม่จำเป็น</button>
+          <button class="chip" onclick="setTxFilter('saving', this)">เงินออม</button>
+          <button class="chip" onclick="setTxFilter('marked', this)">⭐ ติดดาว</button>
+        </div>
+
+        <input class="field" id="txSearch" placeholder="🔍 ค้นหาชื่อรายการ หรือ หมวดหมู่..." oninput="renderTxList()">
+        
+        <div class="section-title" style="margin-top:10px">
+          <span id="txCountLabel">รายการทั้งหมด</span>
+          <button class="secondary" onclick="openEditor()">＋ เพิ่มรายการ</button>
+        </div>
+
+        <div id="fullTransactionsList"></div>
+      </div>
     </section>
 
-    <section class="panel" style="margin-top:14px">
-      <div class="section-title">สัดส่วนรายจ่าย <button class="secondary" id="exportBtn" onclick="exportPdf()">PDF รายงาน</button></div>
-      <div id="breakdown"></div>
+    <!-- 3. หน้ารายงาน (REPORTS) -->
+    <section id="tab-reports" class="tab-view hidden">
+      <header class="top">
+        <div>
+          <div class="brand">MONTHLY REPORT</div>
+          <div class="hello">รายงานประจำเดือน</div>
+          <div class="muted">ตรวจสอบรายละเอียดก่อนส่งออกไฟล์</div>
+        </div>
+        <input id="reportMonth" class="month" type="month" onchange="syncMonth(this.value)">
+      </header>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700;font-size:15px">ตัวอย่างเอกสารรายงาน</span>
+          <button class="primary" id="exportBtn" onclick="exportPdf()" style="padding:8px 14px;font-size:13px">📥 ดาวน์โหลด PDF</button>
+        </div>
+
+        <div class="report-sheet">
+          <div style="display:flex;justify-content:space-between;border-bottom:2px solid #eef2f8;padding-bottom:10px">
+            <div>
+              <h3 style="margin:0;font-size:16px" id="reportPreviewTitle">รายงานการเงิน</h3>
+              <small class="muted" id="reportPreviewMeta">ผู้ใช้: -</small>
+            </div>
+            <div style="text-align:right">
+              <strong id="reportPreviewNet" class="green">฿0.00</strong><br>
+              <small class="muted">คงเหลือสุทธิ</small>
+            </div>
+          </div>
+
+          <div class="stats" style="margin-top:14px">
+            <div class="stat"><div class="muted">รายรับ</div><div class="num green" id="repIncome">฿0</div></div>
+            <div class="stat"><div class="muted">รายจ่าย</div><div class="num red" id="repExpense">฿0</div></div>
+            <div class="stat"><div class="muted">เงินออม</div><div class="num purple" id="repSaving">฿0</div></div>
+            <div class="stat"><div class="muted">รายจ่ายจำเป็น</div><div class="num orange" id="repNecessary">฿0</div></div>
+          </div>
+
+          <table class="report-table">
+            <thead>
+              <tr><th>วันที่</th><th>รายการ</th><th>หมวดหมู่</th><th style="text-align:right">จำนวนเงิน</th></tr>
+            </thead>
+            <tbody id="reportTableBody">
+              <tr><td colspan="4" class="empty">ไม่มีรายการในเดือนนี้</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
-    <section class="panel">
-      <div class="section-title">รายการล่าสุด <button class="secondary" onclick="openEditor()">＋ เพิ่มรายการ</button></div>
-      <div id="transactions"></div>
+    <!-- 4. หน้าตั้งค่า (SETTINGS & CATEGORIES) -->
+    <section id="tab-settings" class="tab-view hidden">
+      <header class="top">
+        <div>
+          <div class="brand">SETTINGS</div>
+          <div class="hello">ตั้งค่าระบบ</div>
+          <div class="muted">ปรับแต่งหมวดหมู่และจัดการบัญชี</div>
+        </div>
+      </header>
+
+      <!-- บัญชีผู้ใช้ -->
+      <div class="panel">
+        <div class="section-title">บัญชีของฉัน <button class="secondary" onclick="logout()">ออกจากระบบ</button></div>
+        <div class="muted">เข้าสู่ระบบในชื่อ <strong id="usernameLabel"></strong></div>
+      </div>
+
+      <!-- จัดการหมวดหมู่ -->
+      <div class="panel">
+        <div class="section-title">
+          <span>หมวดหมู่ของคุณ</span>
+          <button class="primary" onclick="openCategoryEditor()" style="padding:8px 12px;font-size:12px">＋ เพิ่มหมวดหมู่</button>
+        </div>
+        <div class="muted" style="margin-bottom:12px">คุณสามารถ เพิ่ม, แก้ไข หรือ ลบ หมวดหมู่ของตัวเองได้อย่างอิสระ</div>
+
+        <div class="filter-chips">
+          <button class="chip active" onclick="setCatFilter('all', this)">ทั้งหมด</button>
+          <button class="chip" onclick="setCatFilter('income', this)">รายรับ</button>
+          <button class="chip" onclick="setCatFilter('expense_necessary', this)">รายจ่ายจำเป็น</button>
+          <button class="chip" onclick="setCatFilter('expense_optional', this)">รายจ่ายไม่จำเป็น</button>
+          <button class="chip" onclick="setCatFilter('saving', this)">เงินออม</button>
+        </div>
+
+        <div id="categoriesList"></div>
+      </div>
     </section>
 
-    <section class="panel">
-      <div class="section-title">บัญชีของฉัน <button class="secondary" onclick="logout()">ออกจากระบบ</button></div>
-      <div class="muted">เข้าสู่ระบบในชื่อ <strong id="usernameLabel"></strong></div>
-    </section>
   </main>
 </div>
 
+<!-- BOTTOM NAVIGATION -->
 <nav class="bottom hidden" id="bottomNav">
-  <button class="active" onclick="scrollTo({top:0,behavior:'smooth'})"><b>⌂</b>หน้าหลัก</button>
-  <button onclick="document.getElementById('transactions').scrollIntoView({behavior:'smooth'})"><b>☷</b>รายการ</button>
+  <button id="nav-home" class="active" onclick="switchTab('home')"><b>⌂</b>หน้าหลัก</button>
+  <button id="nav-transactions" onclick="switchTab('transactions')"><b>☷</b>รายการ</button>
   <button class="fab" onclick="openEditor()">＋</button>
-  <button onclick="exportPdf()"><b>▥</b>รายงาน</button>
-  <button onclick="document.getElementById('usernameLabel').scrollIntoView({behavior:'smooth'})"><b>⚙</b>ตั้งค่า</button>
+  <button id="nav-reports" onclick="switchTab('reports')"><b>▥</b>รายงาน</button>
+  <button id="nav-settings" onclick="switchTab('settings')"><b>⚙</b>ตั้งค่า</button>
 </nav>
 
+<!-- MODAL: จัดการธุรกรรม (TRANSACTION EDITOR) -->
 <div class="modal" id="editorModal" onclick="if(event.target===this)closeEditor()">
   <div class="dialog">
     <div class="section-title"><span id="editorTitle">เพิ่มรายการ</span><button class="secondary" onclick="closeEditor()">ปิด</button></div>
     <input type="hidden" id="txId">
-    <label>ชื่อรายการ</label><input class="field" id="txTitle" maxlength="120" placeholder="เช่น ค่าเช่าบ้าน">
+    <label>ชื่อรายการ</label><input class="field" id="txTitle" maxlength="120" placeholder="เช่น ค่าอาหาร, เงินเดือน">
     <div class="row2">
       <div><label>วันที่</label><input class="field" id="txDate" type="date"></div>
       <div><label>จำนวนเงิน (บาท)</label><input class="field" id="txAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00"></div>
@@ -187,25 +324,47 @@
   </div>
 </div>
 
+<!-- MODAL: จัดการหมวดหมู่ (CATEGORY EDITOR) -->
+<div class="modal" id="categoryModal" onclick="if(event.target===this)closeCategoryEditor()">
+  <div class="dialog">
+    <div class="section-title"><span id="catEditorTitle">เพิ่มหมวดหมู่ใหม่</span><button class="secondary" onclick="closeCategoryEditor()">ปิด</button></div>
+    <input type="hidden" id="editCatId">
+    <label>ชื่อหมวดหมู่</label><input class="field" id="editCatName" maxlength="80" placeholder="เช่น ค่ากาแฟ, รายได้พิเศษ">
+    <label>ประเภท</label>
+    <select class="field" id="editCatType">
+      <option value="income">รายรับ</option>
+      <option value="expense_necessary">รายจ่ายจำเป็น</option>
+      <option value="expense_optional">รายจ่ายไม่จำเป็น</option>
+      <option value="saving">เงินออม</option>
+    </select>
+    <label>สีประจำหมวดหมู่</label>
+    <input class="field" id="editCatColor" type="color" value="#2563eb" style="height:48px;padding:4px">
+    <div class="actions">
+      <button class="primary" id="saveCatBtn" onclick="saveCategory()">บันทึกหมวดหมู่</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 
 <script>
-// วาง Web app URL ของคุณที่ได้จากขั้นตอนที่ 2 ตรงนี้
+// ใส่ Web App URL ของคุณที่ Deploy จาก Google Apps Script ที่นี่
 const API_URL = 'https://script.google.com/macros/s/AKfycbzWMYyWVeR1nG4EWhgc1iRsCEeSI--wAOwEFf2SzZHd0lQcW-C5XL1FOCNPgA4n-DVkNA/exec';
 
-const KEY='myfinance_session_v1'; let token=localStorage.getItem(KEY)||''; let me=null, appData=null, categories=[];
+const KEY = 'myfinance_session_v1';
+let token = localStorage.getItem(KEY) || '';
+let me = null, appData = null, categories = [];
+let currentTab = 'home';
+let currentTxFilter = 'all';
+let currentCatFilter = 'all';
 
-// ฟังก์ชันเรียก API ข้ามไปยัง Google Apps Script
 async function call(action, payload = {}) {
   const response = await fetch(API_URL, {
     method: 'POST',
-    // ส่งข้อมูลแบบ Text ปกติเพื่อหลีกเลี่ยงการถูก CORS บล็อก OPTIONS request
     body: JSON.stringify({ action: action, token: token, payload: payload })
   });
   const res = await response.json();
-  if (!res.success) {
-    throw new Error(res.error || 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
-  }
+  if (!res.success) throw new Error(res.error || 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
   return res.data;
 }
 
@@ -219,6 +378,26 @@ function localISODate() {
 }
 function monthNow(){ return localISODate().slice(0,7); }
 
+// Navigation Tabs
+function switchTab(tab) {
+  currentTab = tab;
+  ['home','transactions','reports','settings'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+    document.getElementById(`nav-${t}`).classList.toggle('active', t !== tab);
+  });
+  if (tab === 'transactions') renderTxList();
+  if (tab === 'reports') renderReports();
+  if (tab === 'settings') renderCategoriesList();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function syncMonth(m) {
+  document.getElementById('homeMonth').value = m;
+  document.getElementById('txMonth').value = m;
+  document.getElementById('reportMonth').value = m;
+  loadData();
+}
+
 function showRegister(){document.getElementById('loginForm').classList.add('hidden');document.getElementById('registerForm').classList.remove('hidden')}
 function showLogin(){document.getElementById('registerForm').classList.add('hidden');document.getElementById('loginForm').classList.remove('hidden')}
 
@@ -226,7 +405,7 @@ async function login(){
   const btn = document.getElementById('loginBtn');
   btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...';
   try{
-    const r=await call('login',{username:document.getElementById('loginUser').value,password:document.getElementById('loginPass').value});
+    const r = await call('login', { username: document.getElementById('loginUser').value, password: document.getElementById('loginPass').value });
     acceptSession(r);
   }catch(e){toast(e.message)}
   finally{ btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ'; }
@@ -236,7 +415,7 @@ async function register(){
   const btn = document.getElementById('regBtn');
   btn.disabled = true; btn.textContent = 'กำลังสร้างบัญชี...';
   try{
-    const r=await call('register',{username:document.getElementById('regUser').value,displayName:document.getElementById('regName').value,password:document.getElementById('regPass').value});
+    const r = await call('register', { username: document.getElementById('regUser').value, displayName: document.getElementById('regName').value, password: document.getElementById('regPass').value });
     acceptSession(r);
   }catch(e){toast(e.message)}
   finally{ btn.disabled = false; btn.textContent = 'สร้างบัญชี'; }
@@ -248,17 +427,23 @@ async function showApp(){
   document.getElementById('auth').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('bottomNav').classList.remove('hidden');
-  if(!document.getElementById('month').value) document.getElementById('month').value = monthNow();
+  const nowM = monthNow();
+  document.getElementById('homeMonth').value = nowM;
+  document.getElementById('txMonth').value = nowM;
+  document.getElementById('reportMonth').value = nowM;
   await loadData();
 }
 
 async function loadData(){
   try{
-    const m = document.getElementById('month').value || monthNow();
+    const m = document.getElementById('homeMonth').value || monthNow();
     appData = await call('getAppData', { month: m });
     me = appData.user;
     categories = appData.categories;
-    render();
+    renderHome();
+    if (currentTab === 'transactions') renderTxList();
+    if (currentTab === 'reports') renderReports();
+    if (currentTab === 'settings') renderCategoriesList();
   }catch(e){
     if(/เซสชัน|บัญชีนี้/.test(e.message)){
       localStorage.removeItem(KEY);token='';
@@ -270,7 +455,8 @@ async function loadData(){
   }
 }
 
-function render(){
+// 1. RENDER HOME
+function renderHome(){
   const s = appData.summary;
   document.getElementById('hello').textContent = 'สวัสดี ' + me.displayName + ' 👋';
   document.getElementById('usernameLabel').textContent = me.username;
@@ -287,16 +473,176 @@ function render(){
   const max = Math.max(...groups.map(g=>g[1]), 1);
   document.getElementById('breakdown').innerHTML = groups.map(g=>`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><span>${g[0]}</span><b>${money(g[1])}</b></div><div class="chartbar"><span style="width:${Math.min(100,g[1]/max*100)}%;background:${g[2]}"></span></div></div>`).join('');
   
-  const list = appData.transactions.slice().sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('transactions').innerHTML = list.length ? list.map(t=>{
-    const icon = t.type==='income'?'↘':t.type==='saving'?'♧':t.type==='expense_necessary'?'⌂':'★';
-    const color = t.type==='income'?'green':t.type==='saving'?'purple':t.type==='expense_necessary'?'red':'orange';
-    return `<div class="tx"><div class="tx-icon">${icon}</div><div class="tx-main"><div class="tx-title">${esc(t.title)} ${t.marked?'<span class="marked">★</span>':''}</div><div class="tx-meta">${esc(t.date)} · ${esc(t.category)}</div>${t.note?`<div class="tx-meta">${esc(t.note)}</div>`:''}</div><div style="text-align:right"><div class="tx-amount ${color}">${t.type==='income'?'+':'−'}${money(t.amount)}</div><button class="secondary" style="padding:5px 8px;margin-top:5px;font-size:11px" onclick="editTx('${t.transactionId}')">แก้ไข</button></div></div>`
-  }).join('') : '<div class="empty">ยังไม่มีรายการในเดือนนี้<br>กด “＋” เพื่อเริ่มบันทึก</div>';
+  const recent = appData.transactions.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0, 5);
+  document.getElementById('homeRecentTx').innerHTML = recent.length ? recent.map(t => txCardHtml(t)).join('') : '<div class="empty">ยังไม่มีรายการในเดือนนี้</div>';
 }
 
+function txCardHtml(t) {
+  const icon = t.type==='income'?'↘':t.type==='saving'?'♧':t.type==='expense_necessary'?'⌂':'★';
+  const color = t.type==='income'?'green':t.type==='saving'?'purple':t.type==='expense_necessary'?'red':'orange';
+  return `<div class="tx"><div class="tx-icon">${icon}</div><div class="tx-main"><div class="tx-title">${esc(t.title)} ${t.marked?'<span class="marked">★</span>':''}</div><div class="tx-meta">${esc(t.date)} · ${esc(t.category)}</div>${t.note?`<div class="tx-meta">${esc(t.note)}</div>`:''}</div><div style="text-align:right"><div class="tx-amount ${color}">${t.type==='income'?'+':'−'}${money(t.amount)}</div><button class="secondary" style="padding:4px 8px;margin-top:5px;font-size:11px" onclick="editTx('${t.transactionId}')">แก้ไข</button></div></div>`;
+}
+
+// 2. RENDER TRANSACTIONS PAGE
+function setTxFilter(type, el) {
+  currentTxFilter = type;
+  el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTxList();
+}
+
+function renderTxList() {
+  if (!appData) return;
+  const q = document.getElementById('txSearch').value.toLowerCase().trim();
+  let list = appData.transactions.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  
+  if (currentTxFilter === 'marked') {
+    list = list.filter(t => t.marked);
+  } else if (currentTxFilter !== 'all') {
+    list = list.filter(t => t.type === currentTxFilter);
+  }
+  
+  if (q) {
+    list = list.filter(t => t.title.toLowerCase().includes(q) || t.category.toLowerCase().includes(q) || (t.note && t.note.toLowerCase().includes(q)));
+  }
+
+  document.getElementById('txCountLabel').textContent = `พบ ${list.length} รายการ`;
+  document.getElementById('fullTransactionsList').innerHTML = list.length ? list.map(t => txCardHtml(t)).join('') : '<div class="empty">ไม่พบรายการที่ตรงกับเงื่อนไข</div>';
+}
+
+// 3. RENDER REPORTS PAGE
+function renderReports() {
+  if (!appData) return;
+  const s = appData.summary;
+  const m = document.getElementById('reportMonth').value;
+  document.getElementById('reportPreviewTitle').textContent = `รายงานการเงินประจำเดือน ${m}`;
+  document.getElementById('reportPreviewMeta').textContent = `ผู้ใช้: ${me.displayName} · อัปเดตล่าสุด: ${new Date().toLocaleDateString('th-TH')}`;
+  document.getElementById('reportPreviewNet').textContent = money(s.net);
+  document.getElementById('repIncome').textContent = money(s.income);
+  document.getElementById('repExpense').textContent = money(s.expense);
+  document.getElementById('repSaving').textContent = money(s.saving);
+  document.getElementById('repNecessary').textContent = money(s.necessary);
+
+  const txs = appData.transactions.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('reportTableBody').innerHTML = txs.length ? txs.map(t => `
+    <tr>
+      <td>${esc(t.date)}</td>
+      <td>${esc(t.title)} ${t.marked?'★':''}</td>
+      <td>${esc(t.category)}</td>
+      <td style="text-align:right;font-weight:700">${t.type==='income'?'+':'−'}${money(t.amount)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4" class="empty">ไม่มีรายการในเดือนนี้</td></tr>';
+}
+
+// 4. RENDER SETTINGS & CATEGORIES
+function setCatFilter(type, el) {
+  currentCatFilter = type;
+  el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderCategoriesList();
+}
+
+function renderCategoriesList() {
+  let list = categories.slice();
+  if (currentCatFilter !== 'all') list = list.filter(c => c.type === currentCatFilter);
+  
+  document.getElementById('categoriesList').innerHTML = list.length ? list.map(c => `
+    <div class="cat-item">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c.color||'#64748b'}"></span>
+        <div>
+          <strong style="font-size:14px">${esc(c.name)}</strong>
+          <div style="margin-top:3px">
+            <span class="cat-badge" style="background:#f1f5f9;color:#475569">${typeLabel(c.type)}</span>
+            ${c.isDefault ? '<span class="cat-badge" style="background:#f8fafc;color:#94a3b8">เริ่มต้น</span>' : '<span class="cat-badge" style="background:#e0f2fe;color:#0369a1">กำหนดเอง</span>'}
+          </div>
+        </div>
+      </div>
+      <div>
+        ${!c.isDefault ? `
+          <button class="secondary" style="padding:4px 8px;font-size:11px" onclick="editCategory('${c.categoryId}')">แก้ไข</button>
+          <button class="danger" style="padding:4px 8px;font-size:11px;margin-left:4px" onclick="deleteCategory('${c.categoryId}')">ลบ</button>
+        ` : '<span class="muted" style="font-size:12px;margin-right:6px">หมวดหมู่ระบบ</span>'}
+      </div>
+    </div>
+  `).join('') : '<div class="empty">ไม่มีหมวดหมู่ในประเภทนี้</div>';
+}
+
+function typeLabel(t){
+  return ({income:'รายรับ',expense_necessary:'รายจ่ายจำเป็น',expense_optional:'รายจ่ายไม่จำเป็น',saving:'เงินออม'})[t]||t;
+}
+
+// Category Editor Modals
+function openCategoryEditor() {
+  document.getElementById('catEditorTitle').textContent = 'เพิ่มหมวดหมู่ใหม่';
+  document.getElementById('editCatId').value = '';
+  document.getElementById('editCatName').value = '';
+  document.getElementById('editCatType').value = 'expense_optional';
+  document.getElementById('editCatColor').value = '#f59e0b';
+  document.getElementById('categoryModal').classList.add('show');
+}
+
+function closeCategoryEditor() {
+  document.getElementById('categoryModal').classList.remove('show');
+}
+
+function editCategory(id) {
+  const c = categories.find(x => x.categoryId === id);
+  if (!c) return;
+  document.getElementById('catEditorTitle').textContent = 'แก้ไขหมวดหมู่';
+  document.getElementById('editCatId').value = c.categoryId;
+  document.getElementById('editCatName').value = c.name;
+  document.getElementById('editCatType').value = c.type;
+  document.getElementById('editCatColor').value = c.color || '#2563eb';
+  document.getElementById('categoryModal').classList.add('show');
+}
+
+async function saveCategory() {
+  const id = document.getElementById('editCatId').value;
+  const name = document.getElementById('editCatName').value.trim();
+  const type = document.getElementById('editCatType').value;
+  const color = document.getElementById('editCatColor').value;
+  if (!name) return toast('กรุณากรอกชื่อหมวดหมู่');
+  
+  const btn = document.getElementById('saveCatBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  try {
+    if (id) {
+      await call('updateCategory', { categoryId: id, name, type, color });
+      toast('แก้ไขหมวดหมู่สำเร็จ');
+    } else {
+      await call('addCategory', { name, type, color });
+      toast('เพิ่มหมวดหมู่สำเร็จ');
+    }
+    closeCategoryEditor();
+    await loadData();
+  } catch(e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'บันทึกหมวดหมู่';
+  }
+}
+
+async function deleteCategory(id) {
+  if (!confirm('ต้องการลบหมวดหมู่นี้หรือไม่?')) return;
+  try {
+    toast('กำลังลบหมวดหมู่...');
+    await call('deleteCategory', { categoryId: id });
+    toast('ลบหมวดหมู่สำเร็จ');
+    await loadData();
+  } catch(e) {
+    toast(e.message);
+  }
+}
+
+// Transaction Editor Modals
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function updateCategoryOptions(selected){const type=document.getElementById('txType').value;const list=categories.filter(c=>c.type===type);document.getElementById('txCategory').innerHTML=list.map(c=>`<option>${esc(c.name)}</option>`).join('');if(selected)document.getElementById('txCategory').value=selected}
+function updateCategoryOptions(selected){
+  const type = document.getElementById('txType').value;
+  const list = categories.filter(c => c.type === type);
+  document.getElementById('txCategory').innerHTML = list.map(c => `<option>${esc(c.name)}</option>`).join('');
+  if (selected) document.getElementById('txCategory').value = selected;
+}
 
 function openEditor(){
   if(!token)return;
@@ -318,8 +664,8 @@ function openEditor(){
 function closeEditor(){document.getElementById('editorModal').classList.remove('show')}
 
 function editTx(id){
-  const t=appData.transactions.find(x=>x.transactionId===id);
-  if(!t)return;
+  const t = appData.transactions.find(x => x.transactionId === id);
+  if (!t) return;
   openEditor();
   document.getElementById('editorTitle').textContent='แก้ไขรายการ';
   document.getElementById('txId').value=t.transactionId;
@@ -364,10 +710,10 @@ async function saveTx(){
     closeEditor();
     
     if (inputDate && inputDate.slice(0, 7)) {
-      document.getElementById('month').value = inputDate.slice(0, 7);
+      syncMonth(inputDate.slice(0, 7));
     }
     
-    toast('บันทึกเรียบร้อย กำลังอัปเดตหน้าจอ...');
+    toast('บันทึกเรียบร้อย');
     await loadData();
   }catch(e){
     toast(e.message);
@@ -398,13 +744,18 @@ async function exportPdf(){
   btn.disabled = true; btn.textContent = 'รอสักครู่...';
   try{
     toast('กำลังสร้างรายงาน PDF…');
-    const r=await call('exportMonthlyPdf', { month: document.getElementById('month').value||monthNow() });
-    const a=document.createElement('a');a.href='data:application/pdf;base64,'+r.base64;a.download=r.fileName;document.body.appendChild(a);a.click();a.remove();
+    const r = await call('exportMonthlyPdf', { month: document.getElementById('reportMonth').value || monthNow() });
+    const a = document.createElement('a');
+    a.href = 'data:application/pdf;base64,' + r.base64;
+    a.download = r.fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     toast('ดาวน์โหลดรายงาน PDF แล้ว');
   }catch(e){
     toast(e.message);
   }finally{
-    btn.disabled = false; btn.textContent = 'PDF รายงาน';
+    btn.disabled = false; btn.textContent = '📥 ดาวน์โหลด PDF';
   }
 }
 
@@ -417,9 +768,8 @@ async function logout(){
   showLogin();toast('ออกจากระบบแล้ว');
 }
 
-// ---------- Pull to Refresh ----------
+// Pull to Refresh
 let ptrStartY = 0, ptrDist = 0, isPTRActive = false, isRefreshing = false;
-
 window.addEventListener('touchstart', (e) => {
   if (window.scrollY <= 0 && !isRefreshing && token && !document.getElementById('app').classList.contains('hidden')) {
     ptrStartY = e.touches[0].pageY;
