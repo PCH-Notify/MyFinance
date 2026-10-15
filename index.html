@@ -1,843 +1,442 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f4f8ff">
-  <title>MyFinance</title>
-  <style>
-    :root{--ink:#172b4d;--muted:#71809a;--line:#e4ebf5;--green:#10b981;--red:#ef5350;--purple:#8b5cf6;--amber:#f59e0b;--blue:#2563eb;--bg:#f6faff}
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(150deg,#f6faff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,sans-serif;color:var(--ink);padding:env(safe-area-inset-top) 14px calc(84px + env(safe-area-inset-bottom));overscroll-behavior-y:contain}
-    button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}button:disabled{opacity:0.6;cursor:not-allowed}
-    .wrap{max-width:980px;margin:auto}
-    .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 2px}
-    .brand{font-size:12px;letter-spacing:2px;color:#6480a8;font-weight:800}
-    .hello{font-size:22px;font-weight:800;margin-top:4px}
-    .muted{color:var(--muted);font-size:13px}
-    .month{border:1px solid var(--line);background:white;border-radius:14px;padding:10px;max-width:160px;color:var(--ink)}
-    
-    .ptr-wrap{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--blue);font-size:13px;font-weight:700;transform:translateY(-60px);transition:transform 0.2s cubic-bezier(0.1,0.9,0.2,1);z-index:99;pointer-events:none;background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);box-shadow:0 4px 15px rgba(37,99,235,0.08)}
-    .ptr-icon{display:inline-block;transition:transform 0.2s ease;font-size:16px}
-    .ptr-icon.spin{animation:ptrSpin 0.7s linear infinite}
-    @keyframes ptrSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+/**
+ * MyFinance - Google Apps Script REST API Backend
+ * Deploy as Web App: Execute as Me / Who has access: Anyone
+ */
+const APP = {
+  NAME: 'MyFinance',
+  SESSION_DAYS: 30,
+  MAX_RECEIPT_BYTES: 4 * 1024 * 1024,
+  SHEETS: {
+    Users: ['userId','username','displayName','salt','passwordHash','createdAt','active'],
+    Transactions: ['transactionId','userId','date','type','category','amount','title','note','marked','receiptFileId','createdAt','updatedAt'],
+    Categories: ['categoryId','userId','name','type','color','createdAt'],
+    Sessions: ['tokenHash','userId','expiresAt','createdAt'],
+    Settings: ['userId','key','value','updatedAt']
+  },
+  DEFAULT_CATEGORIES: [
+    ['เงินเดือน','income','#16a34a'],['รายได้เสริม','income','#16a34a'],['รายรับอื่น ๆ','income','#16a34a'],
+    ['ค่าบ้าน/ค่าเช่า','expense_necessary','#ef4444'],['ค่างวดรถ','expense_necessary','#ef4444'],
+    ['ค่าน้ำ/ค่าไฟ','expense_necessary','#ef4444'],['ค่าส่วนกลาง','expense_necessary','#ef4444'],['ประกัน/สุขภาพ','expense_necessary','#ef4444'],
+    ['อาหาร','expense_optional','#f59e0b'],['ของใช้ส่วนตัว','expense_optional','#f59e0b'],['ช้อปปิ้ง','expense_optional','#f59e0b'],['ความบันเทิง','expense_optional','#f59e0b'],['อื่น ๆ','expense_optional','#f59e0b'],
+    ['เงินออม','saving','#8b5cf6'],['เงินสำรองฉุกเฉิน','saving','#8b5cf6']
+  ]
+};
 
-    .panel{background:rgba(255,255,255,.92);border:1px solid #e5effb;border-radius:22px;padding:16px;box-shadow:0 10px 30px #b8d2f01c;margin-bottom:14px}
-    .circle-area{position:relative;min-height:390px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-    .orbit{position:absolute;width:300px;height:300px;border:1px solid #dce8fb;border-radius:50%}
-    .bubble{position:absolute;border-radius:50%;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-shadow:0 10px 22px #9ab5d733;border:5px solid #ffffffa8;padding:7px}
-    .bubble small{font-size:12px;font-weight:600}
-    .bubble strong{font-size:15px;margin-top:4px;overflow-wrap:anywhere}
-    .center{z-index:2;width:190px;height:190px;background:linear-gradient(145deg,#3e83f7,#1250b9);border:6px solid #b9f7f0;box-shadow:0 8px 26px #2868d533}
-    .center strong{font-size:23px}
-    .center small{opacity:.9}
-    .b-income{width:128px;height:128px;left:4%;top:20px;background:linear-gradient(145deg,#5ce5a0,#00a879)}
-    .b-expense{width:128px;height:128px;right:4%;top:20px;background:linear-gradient(145deg,#ff9b7b,#ef4444)}
-    .b-saving{width:118px;height:118px;left:5%;bottom:10px;background:linear-gradient(145deg,#c084fc,#6d45db)}
-    .b-optional{width:118px;height:118px;right:5%;bottom:10px;background:linear-gradient(145deg,#ffd65a,#f28c00)}
-    .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .stat{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff}
-    .stat .num{font-size:20px;font-weight:800;margin-top:5px}
-    .green{color:#079669}.red{color:#e64b4b}.purple{color:#8052d8}.orange{color:#db8a08}
-    .section-title{font-weight:800;font-size:17px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
-    .primary{background:var(--blue);color:#fff;border-radius:13px;padding:12px 16px;font-weight:700}
-    .secondary{background:#edf4ff;color:#2456a6;border-radius:12px;padding:9px 13px;font-weight:700;font-size:13px}
-    .danger{background:#fff0f0;color:#d94343;border-radius:10px;padding:8px 10px}
-    .tx{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #edf1f7}
-    .tx:last-child{border:0}
-    .tx-icon{width:42px;height:42px;border-radius:14px;background:#eef5ff;display:grid;place-items:center;font-size:19px;flex-shrink:0}
-    .tx-main{flex:1;min-width:0}
-    .tx-title{font-weight:750;overflow-wrap:anywhere}
-    .tx-meta{font-size:12px;color:var(--muted);margin-top:4px}
-    .tx-amount{font-weight:800;white-space:nowrap;font-size:13px}
-    .marked{color:#f59e0b}
-    .bottom{position:fixed;bottom:0;left:0;right:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#ffffffed;backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:space-around;z-index:10}
-    .bottom button{background:transparent;color:#7586a2;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:52px}
-    .bottom b{font-size:20px}
-    .bottom .active{color:#2563eb}
-    .fab{background:#10b981!important;color:white!important;border-radius:50%;width:54px;height:54px;margin-top:-27px;box-shadow:0 4px 15px #10b98155;font-size:25px!important}
-    .modal{position:fixed;inset:0;background:#0b1e3b77;z-index:30;display:none;align-items:flex-end;justify-content:center;padding:10px}
-    .modal.show{display:flex}
-    .dialog{background:white;border-radius:22px 22px 16px 16px;padding:20px;width:100%;max-width:560px;max-height:90dvh;overflow:auto}
-    .field{display:block;width:100%;padding:12px;border:1px solid #dce5f1;border-radius:12px;background:#fff;margin:6px 0 12px;color:var(--ink)}
-    label{font-size:13px;font-weight:700}
-    .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .actions{display:flex;gap:8px;margin-top:14px}
-    .actions button{flex:1}
-    .auth{max-width:440px;margin:8vh auto}
-    .hidden{display:none!important}
-    .toast{position:fixed;z-index:50;bottom:100px;left:50%;transform:translateX(-50%);background:#172b4d;color:white;padding:12px 18px;border-radius:12px;max-width:90%;font-size:13px;box-shadow:0 5px 25px #0002}
-    .empty{text-align:center;padding:28px 10px;color:var(--muted)}
-    .chartbar{height:9px;border-radius:99px;background:#eef2f8;overflow:hidden;margin-top:7px}
-    .chartbar span{display:block;height:100%;border-radius:99px}
-    
-    /* Category tag list */
-    .cat-item{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:14px;background:#fff;border:1px solid var(--line);margin-bottom:8px}
-    .cat-badge{display:inline-block;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:600}
-    .filter-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:10px}
-    .chip{border-radius:99px;padding:6px 12px;font-size:12px;font-weight:700;background:#fff;border:1px solid var(--line);white-space:nowrap;color:var(--muted)}
-    .chip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
-    
-    /* Report Preview Card */
-    .report-sheet{background:#fff;border-radius:16px;border:1px solid var(--line);padding:20px;margin-top:12px}
-    .report-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:14px}
-    .report-table th,.report-table td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
-    .report-table th{background:#f8fafc;color:var(--muted)}
-
-    @media(min-width:650px){body{padding-left:24px;padding-right:24px}.circle-area{min-height:430px}.center{width:210px;height:210px}.center strong{font-size:27px}.b-income{left:17%;width:140px;height:140px}.b-expense{right:17%;width:140px;height:140px}.b-saving{left:19%;width:130px;height:130px}.b-optional{right:19%;width:130px;height:130px}.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.modal{align-items:center}}
-    @media(max-width:380px){.circle-area{min-height:350px}.center{width:158px;height:158px}.center strong{font-size:19px}.b-income,.b-expense{width:105px;height:105px;top:10px}.b-saving,.b-optional{width:98px;height:98px;bottom:6px}.bubble strong{font-size:12px}.bubble small{font-size:10px}.tx-amount{font-size:12px}}
-  </style>
-</head>
-<body>
-
-<div id="ptr" class="ptr-wrap">
-  <span id="ptrIcon" class="ptr-icon">↓</span>
-  <span id="ptrText">ดึงลงเพื่อรีเฟรช</span>
-</div>
-
-<div class="wrap">
-  <!-- AUTH SECTION -->
-  <div id="auth" class="panel auth">
-    <div class="brand">MY FINANCE</div>
-    <div class="hello">จัดการเงินของคุณอย่างสบายใจ</div>
-    <p class="muted">บัญชีส่วนตัว · ข้อมูลแยกตามผู้ใช้</p>
-
-    <div id="loginForm">
-      <label>ชื่อผู้ใช้</label><input class="field" id="loginUser" autocomplete="username" placeholder="username">
-      <label>รหัสผ่าน</label><input class="field" id="loginPass" type="password" autocomplete="current-password" placeholder="อย่างน้อย 10 ตัวอักษร">
-      <button class="primary" id="loginBtn" style="width:100%" onclick="login()">เข้าสู่ระบบ</button>
-      <p class="muted" style="text-align:center">ยังไม่มีบัญชี? <a href="#" onclick="showRegister();return false">สมัครสมาชิก</a></p>
-    </div>
-    <div id="registerForm" class="hidden">
-      <label>ชื่อที่ใช้แสดง</label><input class="field" id="regName" autocomplete="name" placeholder="ชื่อของคุณ">
-      <label>ชื่อผู้ใช้ (a-z, 0-9, . _ -)</label><input class="field" id="regUser" autocomplete="username" placeholder="อย่างน้อย 4 ตัว">
-      <label>รหัสผ่าน</label><input class="field" id="regPass" type="password" autocomplete="new-password" placeholder="อย่างน้อย 10 ตัวอักษร">
-      <button class="primary" id="regBtn" style="width:100%" onclick="register()">สร้างบัญชี</button>
-      <p class="muted" style="text-align:center"><a href="#" onclick="showLogin();return false">กลับไปเข้าสู่ระบบ</a></p>
-    </div>
-  </div>
-
-  <!-- MAIN APP SPA -->
-  <main id="app" class="hidden">
-
-    <!-- 1. หน้าหลัก (HOME) -->
-    <section id="tab-home" class="tab-view">
-      <header class="top">
-        <div>
-          <div class="brand">MY FINANCE</div>
-          <div class="hello" id="hello">สวัสดี 👋</div>
-          <div class="muted">ภาพรวมการเงินของคุณ</div>
-        </div>
-        <input id="homeMonth" class="month" type="month" onchange="syncMonth(this.value)">
-      </header>
-
-      <div class="panel">
-        <div class="circle-area">
-          <div class="orbit"></div>
-          <div class="bubble b-income"><small>↓ รายรับ</small><strong id="circleIncome">฿0</strong><small id="incomePct">—</small></div>
-          <div class="bubble b-expense"><small>↑ รายจ่าย</small><strong id="circleExpense">฿0</strong><small id="expensePct">—</small></div>
-          <div class="bubble b-saving"><small>♧ เงินออม</small><strong id="circleSaving">฿0</strong><small id="savingPct">—</small></div>
-          <div class="bubble b-optional"><small>★ ไม่จำเป็น</small><strong id="circleOptional">฿0</strong><small id="optionalPct">—</small></div>
-          <div class="bubble center"><small>▣ ยอดคงเหลือสุทธิ</small><strong id="circleNet">฿0</strong><small>รายรับ − รายจ่าย − เงินออม</small></div>
-        </div>
-        <div class="muted" style="text-align:center">สรุปยอดของเดือนที่เลือก · เลื่อนลงเพื่อรีเฟรชข้อมูล</div>
-      </div>
-
-      <div class="stats">
-        <div class="stat"><div class="muted">รายรับ</div><div class="num green" id="statIncome">฿0</div></div>
-        <div class="stat"><div class="muted">รายจ่าย</div><div class="num red" id="statExpense">฿0</div></div>
-        <div class="stat"><div class="muted">เงินออม</div><div class="num purple" id="statSaving">฿0</div></div>
-        <div class="stat"><div class="muted">รายจ่ายจำเป็น</div><div class="num orange" id="statNecessary">฿0</div></div>
-      </div>
-
-      <div class="panel" style="margin-top:14px">
-        <div class="section-title">สัดส่วนค่าใช้จ่าย</div>
-        <div id="breakdown"></div>
-      </div>
-
-      <div class="panel">
-        <div class="section-title">
-          <span>รายการล่าสุด</span>
-          <button class="secondary" onclick="switchTab('transactions')">เพิ่มเติม →</button>
-        </div>
-        <div id="homeRecentTx"></div>
-      </div>
-    </section>
-
-    <!-- 2. หน้ารายการ (TRANSACTIONS MANAGEMENT) -->
-    <section id="tab-transactions" class="tab-view hidden">
-      <header class="top">
-        <div>
-          <div class="brand">TRANSACTIONS</div>
-          <div class="hello">จัดการรายการ</div>
-          <div class="muted">เลือกเดือนเพื่อดูหรือแก้ไขย้อนหลัง</div>
-        </div>
-        <input id="txMonth" class="month" type="month" onchange="syncMonth(this.value)">
-      </header>
-
-      <div class="panel">
-        <div class="filter-chips">
-          <button class="chip active" onclick="setTxFilter('all', this)">ทั้งหมด</button>
-          <button class="chip" onclick="setTxFilter('income', this)">รายรับ</button>
-          <button class="chip" onclick="setTxFilter('expense_necessary', this)">จำเป็น</button>
-          <button class="chip" onclick="setTxFilter('expense_optional', this)">ไม่จำเป็น</button>
-          <button class="chip" onclick="setTxFilter('saving', this)">เงินออม</button>
-          <button class="chip" onclick="setTxFilter('marked', this)">⭐ ติดดาว</button>
-        </div>
-
-        <input class="field" id="txSearch" placeholder="🔍 ค้นหาชื่อรายการ หรือ หมวดหมู่..." oninput="renderTxList()">
-        
-        <div class="section-title" style="margin-top:10px">
-          <span id="txCountLabel">รายการทั้งหมด</span>
-          <button class="secondary" onclick="openEditor()">＋ เพิ่มรายการ</button>
-        </div>
-
-        <div id="fullTransactionsList"></div>
-      </div>
-    </section>
-
-    <!-- 3. หน้ารายงาน (REPORTS) -->
-    <section id="tab-reports" class="tab-view hidden">
-      <header class="top">
-        <div>
-          <div class="brand">MONTHLY REPORT</div>
-          <div class="hello">รายงานประจำเดือน</div>
-          <div class="muted">ตรวจสอบรายละเอียดก่อนส่งออกไฟล์</div>
-        </div>
-        <input id="reportMonth" class="month" type="month" onchange="syncMonth(this.value)">
-      </header>
-
-      <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:700;font-size:15px">ตัวอย่างเอกสารรายงาน</span>
-          <button class="primary" id="exportBtn" onclick="exportPdf()" style="padding:8px 14px;font-size:13px">📥 ดาวน์โหลด PDF</button>
-        </div>
-
-        <div class="report-sheet">
-          <div style="display:flex;justify-content:space-between;border-bottom:2px solid #eef2f8;padding-bottom:10px">
-            <div>
-              <h3 style="margin:0;font-size:16px" id="reportPreviewTitle">รายงานการเงิน</h3>
-              <small class="muted" id="reportPreviewMeta">ผู้ใช้: -</small>
-            </div>
-            <div style="text-align:right">
-              <strong id="reportPreviewNet" class="green">฿0.00</strong><br>
-              <small class="muted">คงเหลือสุทธิ</small>
-            </div>
-          </div>
-
-          <div class="stats" style="margin-top:14px">
-            <div class="stat"><div class="muted">รายรับ</div><div class="num green" id="repIncome">฿0</div></div>
-            <div class="stat"><div class="muted">รายจ่าย</div><div class="num red" id="repExpense">฿0</div></div>
-            <div class="stat"><div class="muted">เงินออม</div><div class="num purple" id="repSaving">฿0</div></div>
-            <div class="stat"><div class="muted">รายจ่ายจำเป็น</div><div class="num orange" id="repNecessary">฿0</div></div>
-          </div>
-
-          <table class="report-table">
-            <thead>
-              <tr><th>วันที่</th><th>รายการ</th><th>หมวดหมู่</th><th style="text-align:right">จำนวนเงิน</th></tr>
-            </thead>
-            <tbody id="reportTableBody">
-              <tr><td colspan="4" class="empty">ไม่มีรายการในเดือนนี้</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- 4. หน้าตั้งค่า (SETTINGS & CATEGORIES) -->
-    <section id="tab-settings" class="tab-view hidden">
-      <header class="top">
-        <div>
-          <div class="brand">SETTINGS</div>
-          <div class="hello">ตั้งค่าระบบ</div>
-          <div class="muted">ปรับแต่งหมวดหมู่และจัดการบัญชี</div>
-        </div>
-      </header>
-
-      <!-- บัญชีผู้ใช้ -->
-      <div class="panel">
-        <div class="section-title">บัญชีของฉัน <button class="secondary" onclick="logout()">ออกจากระบบ</button></div>
-        <div class="muted">เข้าสู่ระบบในชื่อ <strong id="usernameLabel"></strong></div>
-      </div>
-
-      <!-- จัดการหมวดหมู่ -->
-      <div class="panel">
-        <div class="section-title">
-          <span>หมวดหมู่ของคุณ</span>
-          <button class="primary" onclick="openCategoryEditor()" style="padding:8px 12px;font-size:12px">＋ เพิ่มหมวดหมู่</button>
-        </div>
-        <div class="muted" style="margin-bottom:12px">คุณสามารถ เพิ่ม, แก้ไข หรือ ลบ หมวดหมู่ของตัวเองได้อย่างอิสระ</div>
-
-        <div class="filter-chips">
-          <button class="chip active" onclick="setCatFilter('all', this)">ทั้งหมด</button>
-          <button class="chip" onclick="setCatFilter('income', this)">รายรับ</button>
-          <button class="chip" onclick="setCatFilter('expense_necessary', this)">รายจ่ายจำเป็น</button>
-          <button class="chip" onclick="setCatFilter('expense_optional', this)">รายจ่ายไม่จำเป็น</button>
-          <button class="chip" onclick="setCatFilter('saving', this)">เงินออม</button>
-        </div>
-
-        <div id="categoriesList"></div>
-      </div>
-    </section>
-
-  </main>
-</div>
-
-<!-- BOTTOM NAVIGATION -->
-<nav class="bottom hidden" id="bottomNav">
-  <button id="nav-home" class="active" onclick="switchTab('home')"><b>⌂</b>หน้าหลัก</button>
-  <button id="nav-transactions" onclick="switchTab('transactions')"><b>☷</b>รายการ</button>
-  <button class="fab" onclick="openEditor()">＋</button>
-  <button id="nav-reports" onclick="switchTab('reports')"><b>▥</b>รายงาน</button>
-  <button id="nav-settings" onclick="switchTab('settings')"><b>⚙</b>ตั้งค่า</button>
-</nav>
-
-<!-- MODAL: จัดการธุรกรรม (TRANSACTION EDITOR) -->
-<div class="modal" id="editorModal" onclick="if(event.target===this)closeEditor()">
-  <div class="dialog">
-    <div class="section-title"><span id="editorTitle">เพิ่มรายการ</span><button class="secondary" onclick="closeEditor()">ปิด</button></div>
-    <input type="hidden" id="txId">
-    <label>ชื่อรายการ</label><input class="field" id="txTitle" maxlength="120" placeholder="เช่น ค่าอาหาร, เงินเดือน">
-    <div class="row2">
-      <div><label>วันที่</label><input class="field" id="txDate" type="date"></div>
-      <div><label>จำนวนเงิน (บาท)</label><input class="field" id="txAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00"></div>
-    </div>
-    <label>ประเภท</label>
-    <select class="field" id="txType" onchange="updateCategoryOptions()">
-      <option value="income">รายรับ</option>
-      <option value="expense_necessary">รายจ่ายจำเป็น</option>
-      <option value="expense_optional">รายจ่ายไม่จำเป็น</option>
-      <option value="saving">เงินออม</option>
-    </select>
-    <label>หมวดหมู่</label><select class="field" id="txCategory"></select>
-    <label>หมายเหตุ</label><textarea class="field" id="txNote" rows="2" maxlength="1000" placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)"></textarea>
-    <label><input type="checkbox" id="txMarked"> ⭐ ทำเครื่องหมายรายการนี้</label>
-    <div style="margin-top:14px">
-      <label>รูปใบเสร็จ / หลักฐาน (สูงสุด 4 MB)</label>
-      <input class="field" id="txReceipt" type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf">
-      <div class="muted" id="receiptHint">รูปจะถูกเก็บใน Google Drive แบบส่วนตัว</div>
-    </div>
-    <div class="actions">
-      <button class="primary" id="saveBtn" onclick="saveTx()">บันทึกรายการ</button>
-      <button class="danger hidden" id="deleteBtn" onclick="deleteTx()">ลบรายการ</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: จัดการหมวดหมู่ (CATEGORY EDITOR) -->
-<div class="modal" id="categoryModal" onclick="if(event.target===this)closeCategoryEditor()">
-  <div class="dialog">
-    <div class="section-title"><span id="catEditorTitle">เพิ่มหมวดหมู่ใหม่</span><button class="secondary" onclick="closeCategoryEditor()">ปิด</button></div>
-    <input type="hidden" id="editCatId">
-    <label>ชื่อหมวดหมู่</label><input class="field" id="editCatName" maxlength="80" placeholder="เช่น ค่ากาแฟ, รายได้พิเศษ">
-    <label>ประเภท</label>
-    <select class="field" id="editCatType">
-      <option value="income">รายรับ</option>
-      <option value="expense_necessary">รายจ่ายจำเป็น</option>
-      <option value="expense_optional">รายจ่ายไม่จำเป็น</option>
-      <option value="saving">เงินออม</option>
-    </select>
-    <label>สีประจำหมวดหมู่</label>
-    <input class="field" id="editCatColor" type="color" value="#2563eb" style="height:48px;padding:4px">
-    <div class="actions">
-      <button class="primary" id="saveCatBtn" onclick="saveCategory()">บันทึกหมวดหมู่</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast" class="toast hidden"></div>
-
-<script>
-// ใส่ Web App URL ของคุณที่ Deploy จาก Google Apps Script ที่นี่
-const API_URL = 'https://script.google.com/macros/s/AKfycbzWMYyWVeR1nG4EWhgc1iRsCEeSI--wAOwEFf2SzZHd0lQcW-C5XL1FOCNPgA4n-DVkNA/exec';
-
-const KEY = 'myfinance_session_v1';
-let token = localStorage.getItem(KEY) || '';
-let me = null, appData = null, categories = [];
-let currentTab = 'home';
-let currentTxFilter = 'all';
-let currentCatFilter = 'all';
-
-async function call(action, payload = {}) {
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: action, token: token, payload: payload })
-  });
-  const res = await response.json();
-  if (!res.success) throw new Error(res.error || 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
-  return res.data;
-}
-
-function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),3500)}
-function money(n){return '฿'+Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})}
-
-function localISODate() {
-  const d = new Date();
-  const offset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - offset).toISOString().slice(0, 10);
-}
-function monthNow(){ return localISODate().slice(0,7); }
-
-// Navigation Tabs
-function switchTab(tab) {
-  currentTab = tab;
-  ['home','transactions','reports','settings'].forEach(t => {
-    document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
-    document.getElementById(`nav-${t}`).classList.toggle('active', t !== tab);
-  });
-  if (tab === 'transactions') renderTxList();
-  if (tab === 'reports') renderReports();
-  if (tab === 'settings') renderCategoriesList();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function syncMonth(m) {
-  document.getElementById('homeMonth').value = m;
-  document.getElementById('txMonth').value = m;
-  document.getElementById('reportMonth').value = m;
-  loadData();
-}
-
-function showRegister(){document.getElementById('loginForm').classList.add('hidden');document.getElementById('registerForm').classList.remove('hidden')}
-function showLogin(){document.getElementById('registerForm').classList.add('hidden');document.getElementById('loginForm').classList.remove('hidden')}
-
-async function login(){
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...';
-  try{
-    const r = await call('login', { username: document.getElementById('loginUser').value, password: document.getElementById('loginPass').value });
-    acceptSession(r);
-  }catch(e){toast(e.message)}
-  finally{ btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ'; }
-}
-
-async function register(){
-  const btn = document.getElementById('regBtn');
-  btn.disabled = true; btn.textContent = 'กำลังสร้างบัญชี...';
-  try{
-    const r = await call('register', { username: document.getElementById('regUser').value, displayName: document.getElementById('regName').value, password: document.getElementById('regPass').value });
-    acceptSession(r);
-  }catch(e){toast(e.message)}
-  finally{ btn.disabled = false; btn.textContent = 'สร้างบัญชี'; }
-}
-
-function acceptSession(r){token=r.token;me=r.user;localStorage.setItem(KEY,token);showApp()}
-
-async function showApp(){
-  document.getElementById('auth').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  document.getElementById('bottomNav').classList.remove('hidden');
-  const nowM = monthNow();
-  document.getElementById('homeMonth').value = nowM;
-  document.getElementById('txMonth').value = nowM;
-  document.getElementById('reportMonth').value = nowM;
-  await loadData();
-}
-
-async function loadData(){
-  try{
-    const m = document.getElementById('homeMonth').value || monthNow();
-    appData = await call('getAppData', { month: m });
-    me = appData.user;
-    categories = appData.categories;
-    renderHome();
-    if (currentTab === 'transactions') renderTxList();
-    if (currentTab === 'reports') renderReports();
-    if (currentTab === 'settings') renderCategoriesList();
-  }catch(e){
-    if(/เซสชัน|บัญชีนี้/.test(e.message)){
-      localStorage.removeItem(KEY);token='';
-      document.getElementById('auth').classList.remove('hidden');
-      document.getElementById('app').classList.add('hidden');
-      document.getElementById('bottomNav').classList.add('hidden');
-    }
-    toast('ขัดข้อง: ' + e.message);
-  }
-}
-
-// 1. RENDER HOME
-function renderHome(){
-  const s = appData.summary;
-  document.getElementById('hello').textContent = 'สวัสดี ' + me.displayName + ' 👋';
-  document.getElementById('usernameLabel').textContent = me.username;
-  
-  [['circleIncome',s.income],['circleExpense',s.expense],['circleSaving',s.saving],['circleOptional',s.optional],['circleNet',s.net],['statIncome',s.income],['statExpense',s.expense],['statSaving',s.saving],['statNecessary',s.necessary]].forEach(([id,n])=>document.getElementById(id).textContent=money(n));
-  
-  const base = s.income || 1;
-  document.getElementById('incomePct').textContent = '100% ของรายรับ';
-  document.getElementById('expensePct').textContent = Math.round(s.expense/base*100) + '% ของรายรับ';
-  document.getElementById('savingPct').textContent = Math.round(s.saving/base*100) + '% ของรายรับ';
-  document.getElementById('optionalPct').textContent = Math.round(s.optional/base*100) + '% ของรายรับ';
-  
-  const groups = [['รายจ่ายจำเป็น',s.necessary,'#ef5350'],['รายจ่ายไม่จำเป็น',s.optional,'#f59e0b'],['เงินออม',s.saving,'#8b5cf6']];
-  const max = Math.max(...groups.map(g=>g[1]), 1);
-  document.getElementById('breakdown').innerHTML = groups.map(g=>`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><span>${g[0]}</span><b>${money(g[1])}</b></div><div class="chartbar"><span style="width:${Math.min(100,g[1]/max*100)}%;background:${g[2]}"></span></div></div>`).join('');
-  
-  const recent = appData.transactions.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0, 5);
-  document.getElementById('homeRecentTx').innerHTML = recent.length ? recent.map(t => txCardHtml(t)).join('') : '<div class="empty">ยังไม่มีรายการในเดือนนี้</div>';
-}
-
-function txCardHtml(t) {
-  const icon = t.type==='income'?'↘':t.type==='saving'?'♧':t.type==='expense_necessary'?'⌂':'★';
-  const color = t.type==='income'?'green':t.type==='saving'?'purple':t.type==='expense_necessary'?'red':'orange';
-  return `<div class="tx"><div class="tx-icon">${icon}</div><div class="tx-main"><div class="tx-title">${esc(t.title)} ${t.marked?'<span class="marked">★</span>':''}</div><div class="tx-meta">${esc(t.date)} · ${esc(t.category)}</div>${t.note?`<div class="tx-meta">${esc(t.note)}</div>`:''}</div><div style="text-align:right"><div class="tx-amount ${color}">${t.type==='income'?'+':'−'}${money(t.amount)}</div><button class="secondary" style="padding:4px 8px;margin-top:5px;font-size:11px" onclick="editTx('${t.transactionId}')">แก้ไข</button></div></div>`;
-}
-
-// 2. RENDER TRANSACTIONS PAGE
-function setTxFilter(type, el) {
-  currentTxFilter = type;
-  el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderTxList();
-}
-
-function renderTxList() {
-  if (!appData) return;
-  const q = document.getElementById('txSearch').value.toLowerCase().trim();
-  let list = appData.transactions.slice().sort((a,b)=>b.date.localeCompare(a.date));
-  
-  if (currentTxFilter === 'marked') {
-    list = list.filter(t => t.marked);
-  } else if (currentTxFilter !== 'all') {
-    list = list.filter(t => t.type === currentTxFilter);
-  }
-  
-  if (q) {
-    list = list.filter(t => t.title.toLowerCase().includes(q) || t.category.toLowerCase().includes(q) || (t.note && t.note.toLowerCase().includes(q)));
-  }
-
-  document.getElementById('txCountLabel').textContent = `พบ ${list.length} รายการ`;
-  document.getElementById('fullTransactionsList').innerHTML = list.length ? list.map(t => txCardHtml(t)).join('') : '<div class="empty">ไม่พบรายการที่ตรงกับเงื่อนไข</div>';
-}
-
-// 3. RENDER REPORTS PAGE
-function renderReports() {
-  if (!appData) return;
-  const s = appData.summary;
-  const m = document.getElementById('reportMonth').value;
-  document.getElementById('reportPreviewTitle').textContent = `รายงานการเงินประจำเดือน ${m}`;
-  document.getElementById('reportPreviewMeta').textContent = `ผู้ใช้: ${me.displayName} · อัปเดตล่าสุด: ${new Date().toLocaleDateString('th-TH')}`;
-  document.getElementById('reportPreviewNet').textContent = money(s.net);
-  document.getElementById('repIncome').textContent = money(s.income);
-  document.getElementById('repExpense').textContent = money(s.expense);
-  document.getElementById('repSaving').textContent = money(s.saving);
-  document.getElementById('repNecessary').textContent = money(s.necessary);
-
-  const txs = appData.transactions.slice().sort((a,b)=>a.date.localeCompare(b.date));
-  document.getElementById('reportTableBody').innerHTML = txs.length ? txs.map(t => `
-    <tr>
-      <td>${esc(t.date)}</td>
-      <td>${esc(t.title)} ${t.marked?'★':''}</td>
-      <td>${esc(t.category)}</td>
-      <td style="text-align:right;font-weight:700">${t.type==='income'?'+':'−'}${money(t.amount)}</td>
-    </tr>
-  `).join('') : '<tr><td colspan="4" class="empty">ไม่มีรายการในเดือนนี้</td></tr>';
-}
-
-// 4. RENDER SETTINGS & CATEGORIES
-function setCatFilter(type, el) {
-  currentCatFilter = type;
-  el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderCategoriesList();
-}
-
-function renderCategoriesList() {
-  let list = categories.slice();
-  if (currentCatFilter !== 'all') list = list.filter(c => c.type === currentCatFilter);
-  
-  document.getElementById('categoriesList').innerHTML = list.length ? list.map(c => `
-    <div class="cat-item">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c.color||'#64748b'}"></span>
-        <div>
-          <strong style="font-size:14px">${esc(c.name)}</strong>
-          <div style="margin-top:3px">
-            <span class="cat-badge" style="background:#f1f5f9;color:#475569">${typeLabel(c.type)}</span>
-            ${c.isDefault ? '<span class="cat-badge" style="background:#f8fafc;color:#94a3b8">เริ่มต้น</span>' : '<span class="cat-badge" style="background:#e0f2fe;color:#0369a1">กำหนดเอง</span>'}
-          </div>
-        </div>
-      </div>
-      <div>
-        ${!c.isDefault ? `
-          <button class="secondary" style="padding:4px 8px;font-size:11px" onclick="editCategory('${c.categoryId}')">แก้ไข</button>
-          <button class="danger" style="padding:4px 8px;font-size:11px;margin-left:4px" onclick="deleteCategory('${c.categoryId}')">ลบ</button>
-        ` : '<span class="muted" style="font-size:12px;margin-right:6px">หมวดหมู่ระบบ</span>'}
-      </div>
-    </div>
-  `).join('') : '<div class="empty">ไม่มีหมวดหมู่ในประเภทนี้</div>';
-}
-
-function typeLabel(t){
-  return ({income:'รายรับ',expense_necessary:'รายจ่ายจำเป็น',expense_optional:'รายจ่ายไม่จำเป็น',saving:'เงินออม'})[t]||t;
-}
-
-// Category Editor Modals
-function openCategoryEditor() {
-  document.getElementById('catEditorTitle').textContent = 'เพิ่มหมวดหมู่ใหม่';
-  document.getElementById('editCatId').value = '';
-  document.getElementById('editCatName').value = '';
-  document.getElementById('editCatType').value = 'expense_optional';
-  document.getElementById('editCatColor').value = '#f59e0b';
-  document.getElementById('categoryModal').classList.add('show');
-}
-
-function closeCategoryEditor() {
-  document.getElementById('categoryModal').classList.remove('show');
-}
-
-function editCategory(id) {
-  const c = categories.find(x => x.categoryId === id);
-  if (!c) return;
-  document.getElementById('catEditorTitle').textContent = 'แก้ไขหมวดหมู่';
-  document.getElementById('editCatId').value = c.categoryId;
-  document.getElementById('editCatName').value = c.name;
-  document.getElementById('editCatType').value = c.type;
-  document.getElementById('editCatColor').value = c.color || '#2563eb';
-  document.getElementById('categoryModal').classList.add('show');
-}
-
-async function saveCategory() {
-  const id = document.getElementById('editCatId').value;
-  const name = document.getElementById('editCatName').value.trim();
-  const type = document.getElementById('editCatType').value;
-  const color = document.getElementById('editCatColor').value;
-  if (!name) return toast('กรุณากรอกชื่อหมวดหมู่');
-  
-  const btn = document.getElementById('saveCatBtn');
-  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+function doPost(e) {
   try {
-    if (id) {
-      await call('updateCategory', { categoryId: id, name, type, color });
-      toast('แก้ไขหมวดหมู่สำเร็จ');
-    } else {
-      await call('addCategory', { name, type, color });
-      toast('เพิ่มหมวดหมู่สำเร็จ');
+    const request = JSON.parse(e.postData.contents);
+    const action = request.action;
+    const token = request.token;
+    const payload = request.payload || {};
+    let result;
+
+    switch (action) {
+      case 'login':
+        result = login(payload);
+        break;
+      case 'register':
+        result = register(payload);
+        break;
+      case 'logout':
+        result = logout(token);
+        break;
+      case 'getAppData':
+        result = getAppData(token, payload.month);
+        break;
+      case 'saveTransaction':
+        result = saveTransaction(token, payload.input);
+        break;
+      case 'deleteTransaction':
+        result = deleteTransaction(token, payload.transactionId);
+        break;
+      case 'uploadReceipt':
+        result = uploadReceipt(token, payload);
+        break;
+      case 'exportMonthlyPdf':
+        result = exportMonthlyPdf(token, payload.month);
+        break;
+      case 'addCategory':
+        result = addCategory(token, payload);
+        break;
+      case 'updateCategory':
+        result = updateCategory(token, payload);
+        break;
+      case 'deleteCategory':
+        result = deleteCategory(token, payload.categoryId);
+        break;
+      default:
+        throw new Error('ไม่พบคำสั่งที่ระบุ: ' + action);
     }
-    closeCategoryEditor();
-    await loadData();
-  } catch(e) {
-    toast(e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = 'บันทึกหมวดหมู่';
+
+    return ContentService.createTextOutput(JSON.stringify({ success: true, data: result }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-async function deleteCategory(id) {
-  if (!confirm('ต้องการลบหมวดหมู่นี้หรือไม่?')) return;
+function setup() {
+  const props = PropertiesService.getScriptProperties();
+  let ssId = props.getProperty('SPREADSHEET_ID');
+  let ss;
+  if (ssId) {
+    ss = SpreadsheetApp.openById(ssId);
+  } else {
+    ss = SpreadsheetApp.create('MyFinance Database');
+    ssId = ss.getId();
+    props.setProperty('SPREADSHEET_ID', ssId);
+  }
+  Object.keys(APP.SHEETS).forEach(name => {
+    let sh = ss.getSheetByName(name);
+    if (!sh) sh = ss.insertSheet(name);
+    if (sh.getLastRow() === 0) {
+      sh.getRange(1, 1, 1, APP.SHEETS[name].length).setValues([APP.SHEETS[name]]);
+      sh.setFrozenRows(1);
+    }
+  });
+  const first = ss.getSheets()[0];
+  if (first.getName() === 'Sheet1' && ss.getSheets().length > 1) ss.deleteSheet(first);
+  let folderId = props.getProperty('RECEIPTS_FOLDER_ID');
+  if (!folderId) {
+    const folder = DriveApp.createFolder('MyFinance Private Receipts');
+    folderId = folder.getId();
+    props.setProperty('RECEIPTS_FOLDER_ID', folderId);
+  }
+  const sh = ss.getSheetByName('Categories');
+  if (sh.getLastRow() === 1) {
+    const now = new Date().toISOString();
+    const rows = APP.DEFAULT_CATEGORIES.map((c,i) => ['default_'+(i+1),'*',c[0],c[1],c[2],now]);
+    sh.getRange(2,1,rows.length,rows[0].length).setValues(rows);
+  }
+  return {ok:true, spreadsheetUrl:ss.getUrl(), receiptFolderId:folderId, message:'Setup complete.'};
+}
+
+function register(payload) {
+  payload = payload || {};
+  const username = cleanText(payload.username, 40).toLowerCase();
+  const displayName = cleanText(payload.displayName, 80);
+  const password = String(payload.password || '');
+  if (!/^[a-z0-9._-]{4,40}$/.test(username)) throw new Error('ชื่อผู้ใช้ต้องมี 4–40 ตัว ใช้ a-z, 0-9, จุด ขีดกลาง หรือขีดล่าง');
+  if (password.length < 10 || password.length > 200) throw new Error('รหัสผ่านต้องมีอย่างน้อย 10 ตัวอักษร');
+  if (!displayName) throw new Error('กรุณากรอกชื่อที่ใช้แสดง');
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    toast('กำลังลบหมวดหมู่...');
-    await call('deleteCategory', { categoryId: id });
-    toast('ลบหมวดหมู่สำเร็จ');
-    await loadData();
-  } catch(e) {
-    toast(e.message);
-  }
+    const sh = sheet_('Users');
+    const rows = dataRows_(sh);
+    if (rows.some(r => String(r[1]).toLowerCase() === username)) throw new Error('ชื่อผู้ใช้นี้ถูกใช้แล้ว');
+    const userId = Utilities.getUuid();
+    const salt = Utilities.getUuid() + Utilities.getUuid();
+    const hash = passwordHash_(password, salt);
+    sh.appendRow([userId, username, displayName, salt, hash, new Date().toISOString(), true]);
+    SpreadsheetApp.flush();
+    return createSession_(userId, {userId: userId, username: username, displayName: displayName});
+  } finally { lock.releaseLock(); }
 }
 
-// Transaction Editor Modals
-function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function updateCategoryOptions(selected){
-  const type = document.getElementById('txType').value;
-  const list = categories.filter(c => c.type === type);
-  document.getElementById('txCategory').innerHTML = list.map(c => `<option>${esc(c.name)}</option>`).join('');
-  if (selected) document.getElementById('txCategory').value = selected;
+function login(payload) {
+  payload = payload || {};
+  const username = cleanText(payload.username, 40).toLowerCase();
+  const password = String(payload.password || '');
+  const rows = dataRows_(sheet_('Users'));
+  const user = rows.find(r => String(r[1]).toLowerCase() === username && r[6] === true);
+  if (!user || passwordHash_(password, String(user[3])) !== String(user[4])) throw new Error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+  return createSession_(String(user[0]), {userId: String(user[0]), username: String(user[1]), displayName: String(user[2])});
 }
 
-function openEditor(){
-  if(!token)return;
-  document.getElementById('editorTitle').textContent='เพิ่มรายการ';
-  document.getElementById('txId').value='';
-  document.getElementById('txTitle').value='';
-  document.getElementById('txDate').value=localISODate();
-  document.getElementById('txAmount').value='';
-  document.getElementById('txType').value='expense_necessary';
-  document.getElementById('txNote').value='';
-  document.getElementById('txMarked').checked=false;
-  document.getElementById('txReceipt').value='';
-  document.getElementById('receiptHint').textContent='รูปจะถูกเก็บใน Google Drive แบบส่วนตัว';
-  document.getElementById('deleteBtn').classList.add('hidden');
-  updateCategoryOptions();
-  document.getElementById('editorModal').classList.add('show');
+function logout(token) {
+  const hash = tokenHash_(String(token || ''));
+  const sh = sheet_('Sessions');
+  const rows = dataRows_(sh);
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (String(rows[i][0]) === hash) sh.deleteRow(i + 2);
+  }
+  SpreadsheetApp.flush();
+  return {ok:true};
 }
 
-function closeEditor(){document.getElementById('editorModal').classList.remove('show')}
+function getAppData(token, month) {
+  const user = requireUser_(token);
+  const ym = validMonth_(month);
+  
+  const allTx = userTransactions_(user.userId);
+  const tx = allTx.filter(t => String(t.date).slice(0,7) === ym);
+  const cats = categoriesFor_(user.userId);
+  
+  const monthsSet = new Set([Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM')]);
+  allTx.forEach(t => {
+    const m = String(t.date).slice(0,7);
+    if (/^\d{4}-\d{2}$/.test(m)) monthsSet.add(m);
+  });
+  const months = Array.from(monthsSet).sort().reverse().slice(0,36);
 
-function editTx(id){
-  const t = appData.transactions.find(x => x.transactionId === id);
-  if (!t) return;
-  openEditor();
-  document.getElementById('editorTitle').textContent='แก้ไขรายการ';
-  document.getElementById('txId').value=t.transactionId;
-  document.getElementById('txTitle').value=t.title;
-  document.getElementById('txDate').value=t.date;
-  document.getElementById('txAmount').value=t.amount;
-  document.getElementById('txType').value=t.type;
-  document.getElementById('txNote').value=t.note;
-  document.getElementById('txMarked').checked=t.marked;
-  updateCategoryOptions(t.category);
-  document.getElementById('deleteBtn').classList.remove('hidden');
-  document.getElementById('receiptHint').textContent=t.receiptFileId?'มีไฟล์แนบเดิมแล้ว (เลือกใหม่เพื่อแทนที่)':'ยังไม่มีไฟล์แนบ';
+  return {
+    user: {userId:user.userId, username:user.username, displayName:user.displayName}, 
+    month: ym,
+    transactions: tx, 
+    categories: cats, 
+    summary: summarize_(tx), 
+    months: months
+  };
 }
 
-function fileBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]);r.onerror=reject;r.readAsDataURL(file)})}
-
-async function saveTx(){
-  const btn = document.getElementById('saveBtn');
-  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-  try{
-    const file=document.getElementById('txReceipt').files[0];let receiptFileId='';
-    if(file){
-      if(file.size>4*1024*1024) throw Error('ไฟล์ใหญ่เกินไป (สูงสุด 4 MB)');
-      toast('กำลังอัปโหลดไฟล์...');
-      const uploadRes = await call('uploadReceipt', {name:file.name, mimeType:file.type, base64:await fileBase64(file)});
-      receiptFileId = uploadRes.fileId;
-    }
-    const inputDate = document.getElementById('txDate').value;
-    const input = {
-      transactionId: document.getElementById('txId').value,
-      date: inputDate,
-      type: document.getElementById('txType').value,
-      category: document.getElementById('txCategory').value,
-      amount: document.getElementById('txAmount').value,
-      title: document.getElementById('txTitle').value,
-      note: document.getElementById('txNote').value,
-      marked: document.getElementById('txMarked').checked
-    };
-    if(receiptFileId) input.receiptFileId=receiptFileId;
-    
-    await call('saveTransaction', { input: input });
-    closeEditor();
-    
-    if (inputDate && inputDate.slice(0, 7)) {
-      syncMonth(inputDate.slice(0, 7));
-    }
-    
-    toast('บันทึกเรียบร้อย');
-    await loadData();
-  }catch(e){
-    toast(e.message);
-  }finally{
-    btn.disabled = false; btn.textContent = 'บันทึกรายการ';
+function saveTransaction(token, input) {
+  const user = requireUser_(token);
+  input = input || {};
+  const id = cleanText(input.transactionId, 80);
+  const date = String(input.date || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date+'T00:00:00Z'))) throw new Error('วันที่ไม่ถูกต้อง');
+  const type = String(input.type || '');
+  if (!['income','expense_necessary','expense_optional','saving'].includes(type)) throw new Error('ประเภทไม่ถูกต้อง');
+  const category = cleanText(input.category, 80);
+  const title = cleanText(input.title, 120);
+  const note = cleanText(input.note, 1000);
+  const amount = Number(input.amount);
+  if (!title) throw new Error('กรุณากรอกชื่อรายการ');
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000000) throw new Error('จำนวนเงินไม่ถูกต้อง');
+  
+  const sh = sheet_('Transactions');
+  const rows = dataRows_(sh);
+  const now = new Date().toISOString();
+  
+  if (id) {
+    const idx = rows.findIndex(r => String(r[0]) === id && String(r[1]) === user.userId);
+    if (idx < 0) throw new Error('ไม่พบรายการนี้หรือไม่มีสิทธิ์แก้ไข');
+    const old = rows[idx];
+    const receipt = input.receiptFileId ? safeReceiptId_(user.userId, input.receiptFileId) : String(old[9] || '');
+    sh.getRange(idx+2, 1, 1, 12).setValues([[id, user.userId, date, type, category, amount, title, note, !!input.marked, receipt, String(old[10]||now), now]]);
+    SpreadsheetApp.flush();
+    return {ok:true, transactionId:id};
   }
+  
+  const newId = Utilities.getUuid();
+  const receipt = input.receiptFileId ? safeReceiptId_(user.userId, input.receiptFileId) : '';
+  sh.appendRow([newId, user.userId, date, type, category, amount, title, note, !!input.marked, receipt, now, now]);
+  SpreadsheetApp.flush();
+  return {ok:true, transactionId:newId};
 }
 
-async function deleteTx(){
-  const id=document.getElementById('txId').value;
-  if(!id||!confirm('ต้องการลบรายการนี้หรือไม่?')) return;
-  const btn = document.getElementById('deleteBtn');
-  btn.disabled = true; btn.textContent = 'กำลังลบ...';
-  try{
-    await call('deleteTransaction', { transactionId: id });
-    closeEditor();
-    toast('ลบรายการสำเร็จ');
-    await loadData();
-  }catch(e){
-    toast(e.message);
-  }finally{
-    btn.disabled = false; btn.textContent = 'ลบรายการ';
-  }
+function deleteTransaction(token, transactionId) {
+  const user = requireUser_(token);
+  const id = cleanText(transactionId, 80);
+  const sh = sheet_('Transactions'), rows = dataRows_(sh);
+  const idx = rows.findIndex(r => String(r[0]) === id && String(r[1]) === user.userId);
+  if (idx < 0) throw new Error('ไม่พบรายการนี้หรือไม่มีสิทธิ์ลบ');
+  const fileId = String(rows[idx][9] || '');
+  sh.deleteRow(idx+2);
+  SpreadsheetApp.flush();
+  if (fileId) try { DriveApp.getFileById(fileId).setTrashed(true); } catch(e) {}
+  return {ok:true};
 }
 
-async function exportPdf(){
-  const btn = document.getElementById('exportBtn');
-  btn.disabled = true; btn.textContent = 'รอสักครู่...';
-  try{
-    toast('กำลังสร้างรายงาน PDF…');
-    const r = await call('exportMonthlyPdf', { month: document.getElementById('reportMonth').value || monthNow() });
-    const a = document.createElement('a');
-    a.href = 'data:application/pdf;base64,' + r.base64;
-    a.download = r.fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    toast('ดาวน์โหลดรายงาน PDF แล้ว');
-  }catch(e){
-    toast(e.message);
-  }finally{
-    btn.disabled = false; btn.textContent = '📥 ดาวน์โหลด PDF';
-  }
+function uploadReceipt(token, payload) {
+  const user = requireUser_(token);
+  payload = payload || {};
+  const name = cleanText(payload.name, 120).replace(/[\\\/]/g,'_') || 'receipt';
+  const mime = String(payload.mimeType || '');
+  const allowed = ['image/jpeg','image/png','image/webp','image/heic','application/pdf'];
+  if (!allowed.includes(mime)) throw new Error('รองรับไฟล์ JPG, PNG, WebP, HEIC หรือ PDF เท่านั้น');
+  const b64 = String(payload.base64 || '');
+  if (!b64 || b64.length > Math.ceil(APP.MAX_RECEIPT_BYTES*4/3)+100) throw new Error('ไฟล์ใหญ่เกินไป');
+  const bytes = Utilities.base64Decode(b64);
+  const folderId = PropertiesService.getScriptProperties().getProperty('RECEIPTS_FOLDER_ID');
+  const blob = Utilities.newBlob(bytes, mime, user.userId+'_'+Date.now()+'_'+name);
+  const file = DriveApp.getFolderById(folderId).createFile(blob);
+  return {ok:true, fileId:file.getId(), name:name};
 }
 
-async function logout(){
-  try{await call('logout')}catch(e){}
-  localStorage.removeItem(KEY);token='';me=null;
-  document.getElementById('auth').classList.remove('hidden');
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('bottomNav').classList.add('hidden');
-  showLogin();toast('ออกจากระบบแล้ว');
+function exportMonthlyPdf(token, month) {
+  const user = requireUser_(token);
+  const ym = validMonth_(month);
+  const tx = userTransactions_(user.userId).filter(t => String(t.date).slice(0,7) === ym);
+  const summary = summarize_(tx);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const rows = tx.sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(t =>
+    `<tr><td>${esc(t.date)}</td><td>${esc(t.title)}</td><td>${esc(typeLabel_(t.type))}</td><td>${esc(t.category)}</td><td class="num">${Number(t.amount).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${t.marked?'★':''}</td></tr>`).join('');
+  const html = `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;color:#172b4d;padding:28px}h1{font-size:22px}p{color:#5d6b82}.cards{display:flex;gap:10px;margin:18px 0}.card{border:1px solid #dce5f0;border-radius:10px;padding:12px;flex:1}.label{font-size:11px;color:#65748b}.value{font-size:17px;font-weight:bold;margin-top:6px}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border-bottom:1px solid #e5eaf1;padding:8px;text-align:left}th{background:#f3f6fb}.num{text-align:right}footer{margin-top:24px;color:#7b8798;font-size:10px}</style></head><body><h1>รายงานการเงินประจำเดือน ${esc(ym)}</h1><p>ผู้ใช้: ${esc(user.displayName)} · สร้างเมื่อ ${esc(new Date().toLocaleString('th-TH'))}</p><div class="cards"><div class="card"><div class="label">รายรับ</div><div class="value">฿${summary.income.toLocaleString('th-TH',{minimumFractionDigits:2})}</div></div><div class="card"><div class="label">รายจ่าย</div><div class="value">฿${summary.expense.toLocaleString('th-TH',{minimumFractionDigits:2})}</div></div><div class="card"><div class="label">เงินออม</div><div class="value">฿${summary.saving.toLocaleString('th-TH',{minimumFractionDigits:2})}</div></div><div class="card"><div class="label">คงเหลือสุทธิ</div><div class="value">฿${summary.net.toLocaleString('th-TH',{minimumFractionDigits:2})}</div></div></div><table><thead><tr><th>วันที่</th><th>รายการ</th><th>ประเภท</th><th>หมวดหมู่</th><th class="num">จำนวนเงิน</th><th>ทำเครื่องหมาย</th></tr></thead><tbody>${rows || '<tr><td colspan="6">ไม่มีรายการในเดือนนี้</td></tr>'}</tbody></table><footer>เอกสารนี้สร้างจาก MyFinance</footer></body></html>`;
+  const blob = Utilities.newBlob(html, 'text/html', 'report.html').getAs('application/pdf').setName(`MyFinance-${ym}.pdf`);
+  return {fileName:`MyFinance-${ym}.pdf`, base64:Utilities.base64Encode(blob.getBytes()), mimeType:'application/pdf'};
 }
 
-// Pull to Refresh
-let ptrStartY = 0, ptrDist = 0, isPTRActive = false, isRefreshing = false;
-window.addEventListener('touchstart', (e) => {
-  if (window.scrollY <= 0 && !isRefreshing && token && !document.getElementById('app').classList.contains('hidden')) {
-    ptrStartY = e.touches[0].pageY;
-    isPTRActive = true;
-  } else {
-    isPTRActive = false;
+function addCategory(token, payload) {
+  const user = requireUser_(token);
+  payload = payload || {};
+  const name = cleanText(payload.name, 80);
+  const type = String(payload.type || '');
+  const color = /^#[0-9a-fA-F]{6}$/.test(payload.color||'') ? payload.color : '#64748b';
+  if (!name || !['income','expense_necessary','expense_optional','saving'].includes(type)) throw new Error('ข้อมูลหมวดหมู่ไม่ถูกต้อง');
+  if (categoriesFor_(user.userId).some(c => c.name.toLowerCase() === name.toLowerCase() && c.type === type)) {
+    throw new Error('มีหมวดหมู่นี้อยู่แล้ว');
   }
-}, { passive: true });
+  const id = Utilities.getUuid();
+  sheet_('Categories').appendRow([id, user.userId, name, type, color, new Date().toISOString()]);
+  SpreadsheetApp.flush();
+  return {ok:true, categoryId:id};
+}
 
-window.addEventListener('touchmove', (e) => {
-  if (!isPTRActive || isRefreshing) return;
-  const currentY = e.touches[0].pageY;
-  ptrDist = currentY - ptrStartY;
-  if (ptrDist > 0 && window.scrollY <= 0) {
-    const move = Math.min(ptrDist * 0.4, 65);
-    const el = document.getElementById('ptr');
-    el.style.transform = `translateY(${move - 52}px)`;
-    if (move >= 45) {
-      document.getElementById('ptrText').textContent = 'ปล่อยนิ้วเพื่อรีเฟรช';
-      document.getElementById('ptrIcon').style.transform = 'rotate(180deg)';
-    } else {
-      document.getElementById('ptrText').textContent = 'ดึงลงเพื่อรีเฟรช';
-      document.getElementById('ptrIcon').style.transform = 'rotate(0deg)';
-    }
+function updateCategory(token, payload) {
+  const user = requireUser_(token);
+  payload = payload || {};
+  const id = cleanText(payload.categoryId, 80);
+  const name = cleanText(payload.name, 80);
+  const type = String(payload.type || '');
+  const color = /^#[0-9a-fA-F]{6}$/.test(payload.color||'') ? payload.color : '#64748b';
+  if (!id || !name || !['income','expense_necessary','expense_optional','saving'].includes(type)) throw new Error('ข้อมูลหมวดหมู่ไม่ถูกต้อง');
+  
+  const sh = sheet_('Categories');
+  const rows = dataRows_(sh);
+  const idx = rows.findIndex(r => String(r[0]) === id);
+  if (idx < 0) throw new Error('ไม่พบหมวดหมู่นี้');
+  if (String(rows[idx][1]) !== user.userId) {
+    throw new Error('ไม่สามารถแก้ไขหมวดหมู่เริ่มต้นของระบบได้');
   }
-}, { passive: true });
+  
+  const exists = categoriesFor_(user.userId).some(c => c.categoryId !== id && c.name.toLowerCase() === name.toLowerCase() && c.type === type);
+  if (exists) throw new Error('มีหมวดหมู่ชื่อนี้อยู่แล้ว');
 
-window.addEventListener('touchend', async () => {
-  if (!isPTRActive || isRefreshing) return;
-  isPTRActive = false;
-  const el = document.getElementById('ptr');
-  const move = Math.min(ptrDist * 0.4, 65);
-  ptrDist = 0;
-  if (move >= 45) {
-    isRefreshing = true;
-    el.style.transform = 'translateY(10px)';
-    document.getElementById('ptrText').textContent = 'กำลังซิงค์ข้อมูล...';
-    document.getElementById('ptrIcon').classList.add('spin');
-    try {
-      if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(20);
-      await loadData();
-      toast('รีเฟรชข้อมูลเรียบร้อยแล้ว');
-    } catch(e) {
-      toast(e.message);
-    } finally {
-      setTimeout(() => {
-        el.style.transform = 'translateY(-60px)';
-        document.getElementById('ptrIcon').classList.remove('spin');
-        document.getElementById('ptrIcon').style.transform = 'rotate(0deg)';
-        isRefreshing = false;
-      }, 300);
-    }
-  } else {
-    el.style.transform = 'translateY(-60px)';
-  }
-});
+  const old = rows[idx];
+  sh.getRange(idx + 2, 1, 1, 6).setValues([[id, user.userId, name, type, color, String(old[5] || new Date().toISOString())]]);
+  SpreadsheetApp.flush();
+  return {ok:true};
+}
 
-(async()=>{
-  if(token){
-    try{
-      await showApp();
-    }catch(e){
-      if(/เซสชัน|บัญชีนี้/.test(e.message)){
-        localStorage.removeItem(KEY);token='';
-      }
-    }
+function deleteCategory(token, categoryId) {
+  const user = requireUser_(token);
+  const id = cleanText(categoryId, 80);
+  const sh = sheet_('Categories');
+  const rows = dataRows_(sh);
+  const idx = rows.findIndex(r => String(r[0]) === id);
+  if (idx < 0) throw new Error('ไม่พบหมวดหมู่นี้');
+  if (String(rows[idx][1]) !== user.userId) {
+    throw new Error('ไม่สามารถลบหมวดหมู่เริ่มต้นของระบบได้');
   }
-})();
-</script>
-</body>
-</html>
+  
+  const catName = String(rows[idx][2]);
+  const catType = String(rows[idx][3]);
+  const txRows = dataRows_(sheet_('Transactions'));
+  const isUsed = txRows.some(r => String(r[1]) === user.userId && String(r[4]) === catName && String(r[3]) === catType);
+  if (isUsed) throw new Error(`หมวดหมู่ "${catName}" มีรายการธุรกรรมใช้งานอยู่ จึงไม่สามารถลบได้`);
+
+  sh.deleteRow(idx + 2);
+  SpreadsheetApp.flush();
+  return {ok:true};
+}
+
+// ---------- internal helpers ----------
+
+let cachedSs_ = null;
+
+function sheet_(name) {
+  if (!cachedSs_) {
+    const id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+    cachedSs_ = SpreadsheetApp.openById(id);
+  }
+  return cachedSs_.getSheetByName(name);
+}
+
+function dataRows_(sh) {
+  if (sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+}
+
+function cleanText(v,max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max); }
+
+function formatDateIso_(val) {
+  if (!val) return '';
+  if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return s;
+}
+
+function passwordHash_(password, salt) {
+  const signature = Utilities.computeHmacSha256Signature(String(password), String(salt), Utilities.Charset.UTF_8);
+  return Utilities.base64Encode(signature);
+}
+
+function tokenHash_(token) {
+  return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, token, Utilities.Charset.UTF_8));
+}
+
+function createSession_(userId, userObj) {
+  const token = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid();
+  const expires = Date.now() + APP.SESSION_DAYS * 24 * 60 * 60 * 1000;
+  sheet_('Sessions').appendRow([tokenHash_(token), userId, expires, new Date().toISOString()]);
+  SpreadsheetApp.flush();
+  let user = userObj;
+  if (!user) {
+    const u = dataRows_(sheet_('Users')).find(r => String(r[0]) === userId);
+    user = { userId: userId, username: String(u[1]), displayName: String(u[2]) };
+  }
+  return { ok: true, token: token, expiresAt: expires, user: user };
+}
+
+function requireUser_(token) {
+  token = String(token || '');
+  if (token.length < 40) throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+  const hash = tokenHash_(token), sessions = dataRows_(sheet_('Sessions'));
+  const s = sessions.find(r=>String(r[0])===hash && Number(r[2])>Date.now());
+  if (!s) throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+  const row = dataRows_(sheet_('Users')).find(r=>String(r[0])===String(s[1]) && r[6]===true);
+  if (!row) throw new Error('บัญชีนี้ไม่สามารถใช้งานได้');
+  return {userId:String(row[0]),username:String(row[1]),displayName:String(row[2])};
+}
+
+function validMonth_(month) {
+  const s = String(month || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM'));
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(s)) throw new Error('เดือนที่เลือกไม่ถูกต้อง');
+  return s;
+}
+
+function userTransactions_(userId) {
+  return dataRows_(sheet_('Transactions')).filter(r=>String(r[1])===userId).map(r=>({
+    transactionId: String(r[0]),
+    date: formatDateIso_(r[2]),
+    type: String(r[3]),
+    category: String(r[4]),
+    amount: Number(r[5]) || 0,
+    title: String(r[6]),
+    note: String(r[7]||''),
+    marked: r[8] === true,
+    receiptFileId: String(r[9]||'')
+  }));
+}
+
+function categoriesFor_(userId) {
+  return dataRows_(sheet_('Categories')).filter(r=>String(r[1])==='*'||String(r[1])===userId).map(r=>({
+    categoryId: String(r[0]),
+    userId: String(r[1]),
+    isDefault: String(r[1]) === '*',
+    name: String(r[2]),
+    type: String(r[3]),
+    color: String(r[4])
+  }));
+}
+
+function summarize_(tx) {
+  const income = tx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = tx.filter(t=>t.type==='expense_necessary'||t.type==='expense_optional').reduce((s,t)=>s+t.amount,0);
+  const saving = tx.filter(t=>t.type==='saving').reduce((s,t)=>s+t.amount,0);
+  return {
+    income: income,
+    expense: expense,
+    saving: saving,
+    net: income - expense - saving,
+    necessary: tx.filter(t=>t.type==='expense_necessary').reduce((s,t)=>s+t.amount,0),
+    optional: tx.filter(t=>t.type==='expense_optional').reduce((s,t)=>s+t.amount,0)
+  };
+}
+
+function typeLabel_(type) { return ({income:'รายรับ',expense_necessary:'รายจ่ายจำเป็น',expense_optional:'รายจ่ายไม่จำเป็น',saving:'เงินออม'})[type]||type; }
+
+function safeReceiptId_(userId,fileId) {
+  const id = cleanText(fileId,100);
+  const file = DriveApp.getFileById(id);
+  const folderId = PropertiesService.getScriptProperties().getProperty('RECEIPTS_FOLDER_ID');
+  let inFolder = false; const parents = file.getParents();
+  while(parents.hasNext()) if(parents.next().getId()===folderId) inFolder=true;
+  if (!inFolder || !file.getName().startsWith(userId+'_')) throw new Error('ไม่มีสิทธิ์ใช้ไฟล์แนบนี้');
+  return id;
+}
